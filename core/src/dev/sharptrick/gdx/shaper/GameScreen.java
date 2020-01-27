@@ -94,7 +94,12 @@ public class GameScreen implements Screen {
         // of the color to be used to clear the screen.
         Gdx.gl.glViewport(0, 0, width, height);
         Gdx.gl.glClearColor(0, 0, 0, 1);
-        Gdx.gl.glClear(GL30.GL_COLOR_BUFFER_BIT);
+        //Gdx.gl.glClear(GL30.GL_COLOR_BUFFER_BIT);
+        Gdx.gl.glClear(
+            GL30.GL_COLOR_BUFFER_BIT |
+                //GL30.GL_DEPTH_BUFFER_BIT |
+                (Gdx.graphics.getBufferFormat().coverageSampling ? GL30.GL_COVERAGE_BUFFER_BIT_NV : 0)
+        );
 
         // tell the camera to update its matrices.
         cam.update();
@@ -190,8 +195,6 @@ public class GameScreen implements Screen {
                 c0.set(r, g, b, a);
                 game.shapeDrawer.setColor(c0);
 
-                float strokeWidth = 0;
-
                 //draw each line segment
                 for (int i = startIndex; i < endIndex; i++) {
                     //calculate v1 as the cyclic midpoint for smooth aesthetics
@@ -212,20 +215,10 @@ public class GameScreen implements Screen {
 
                     //use relative pressure and time since touch to calculate width
                     float pressure = maxPressure == minPressure ? 1 : (v1[pressureIdx] - minPressure) / (maxPressure - minPressure);
-                    strokeWidth = maxStrokeWidth * pressure * (-1 / (deltaTime + 1) + 1);
-
-                    //float omega = MathUtils.atan2(v1[yIdx] - v0[yIdx], v1[xIdx] - v0[xIdx]);
-
-//                    if (i == startIndex) {
-//                        game.shapeDrawer.setColor(c0);
-//                        //prevOmega = omega;
-//                        game.shapeDrawer.filledCircle(
-//                            width * v0[xIdx], height * v0[yIdx],
-//                            strokeWidth / 2
-//                        );
-//                    }
+                    float strokeWidth = maxStrokeWidth * pressure * (-1 / (deltaTime + 1) + 1);
 
                     if (v0[xIdx] != v1[xIdx] || v0[yIdx] != v1[yIdx]) {
+                        //float omega = MathUtils.atan2(v1[yIdx] - v0[yIdx], v1[xIdx] - v0[xIdx]);
                         game.shapeDrawer.filledCircle(
                             v0[xIdx], v0[yIdx],
                             strokeWidth / 2
@@ -237,48 +230,15 @@ public class GameScreen implements Screen {
                             strokeWidth
                         );
 
+                        // ToDo: draw pie slice to split the difference on the connection angle
 
-
-//                        polygonVertices[0] = width * v0[xIdx] - MathUtils.sin(-prevOmega) * strokeWidth / 2;
-//                        polygonVertices[1] = height * v0[yIdx] - MathUtils.cos(-prevOmega) * strokeWidth / 2;
-//                        polygonVertices[2] = width * v0[xIdx] + MathUtils.sin(-prevOmega) * strokeWidth / 2;
-//                        polygonVertices[3] = height * v0[yIdx] + MathUtils.cos(-prevOmega) * strokeWidth / 2;
-//
-//                        polygonVertices[4] = width * v1[xIdx] + MathUtils.sin(-omega) * strokeWidth / 2;
-//                        polygonVertices[5] = height * v1[yIdx] + MathUtils.cos(-omega) * strokeWidth / 2;
-//                        polygonVertices[6] = width * v1[xIdx] - MathUtils.sin(-omega) * strokeWidth / 2;
-//                        polygonVertices[7] = height * v1[yIdx] - MathUtils.cos(-omega) * strokeWidth / 2;
-//
-//                        game.shapeDrawer.filledTriangle(
-//                            polygonVertices[0], polygonVertices[1],
-//                            polygonVertices[2], polygonVertices[3],
-//                            polygonVertices[4], polygonVertices[5],
-//                            c0, c0, c1
-//                        );
-//
-//                        game.shapeDrawer.filledTriangle(
-//                            polygonVertices[0], polygonVertices[1],
-//                            polygonVertices[4], polygonVertices[5],
-//                            polygonVertices[6], polygonVertices[7],
-//                            c0, c1, c1
-//                        );
-//                    }
-
-//                    if (i == endIndex - 1) {
-//                        game.shapeDrawer.setColor(c1);
-//                        game.shapeDrawer.sector(
-//                            width * v1[0], height * v1[yIdx],
-//                            strokeWidth / 2,
-//                            omega - MathUtils.PI / 2, MathUtils.PI
-//                        );
-//                    }
 
                         //copy v1 into v0
                         System.arraycopy(v1, 0, v0, 0, GESTURE_DIMENSIONS);
                         c0.set(c1);
                         game.shapeDrawer.setColor(c0);
                     }
-                    if(i == endIndex -1){
+                    if (i == endIndex - 1) {
                         game.shapeDrawer.filledCircle(
                             v1[xIdx], v1[yIdx],
                             strokeWidth / 2
@@ -349,7 +309,6 @@ public class GameScreen implements Screen {
                 currentResolution
             );
         }
-
     }
 
     private void extrapolatePoints(int inputStartIdx, int inputEndIdx, int targetStartIdx,
@@ -369,8 +328,8 @@ public class GameScreen implements Screen {
                     targetBuffer[z], targetStartIdx,
                     targetEndIdx - targetStartIdx
                 );
-        } else {
 
+        } else {
             int targetResolution = targetEndIdx - targetStartIdx;
             int a = inputStartIdx;
             int b = a + 1;
@@ -393,6 +352,7 @@ public class GameScreen implements Screen {
                     targetBuffer[z][targetStartIdx + j] = renderBuffer[z][a] + timeD * (renderBuffer[z][b] - renderBuffer[z][a]);
                 }
             }
+
         }
     }
 
@@ -420,6 +380,4 @@ public class GameScreen implements Screen {
             currentResolution = newGestureResolution;
         }
     }
-
-
 }
