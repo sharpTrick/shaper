@@ -92,8 +92,8 @@ public class GameScreen implements Screen {
         // arguments to glClearColor are the red, green
         // blue and alpha component in the range [0,1]
         // of the color to be used to clear the screen.
-        Gdx.gl.glViewport(0, 0, width, height);
-        Gdx.gl.glClearColor(0, 0, 0, 1);
+        //Gdx.gl.glViewport(0, 0, width, height);
+        //Gdx.gl.glClearColor(0, 0, 0, 1);
         //Gdx.gl.glClear(GL30.GL_COLOR_BUFFER_BIT);
         Gdx.gl.glClear(
             GL30.GL_COLOR_BUFFER_BIT |
@@ -102,11 +102,11 @@ public class GameScreen implements Screen {
         );
 
         // tell the camera to update its matrices.
-        cam.update();
+        //cam.update();
         // tell the SpriteBatch to render in the
         // coordinate system specified by the camera.
-        game.batch.setProjectionMatrix(cam.combined);
-        game.shapeDrawer.update();
+        //game.batch.setProjectionMatrix(cam.combined);
+        //game.shapeDrawer.update();
 
         //render
         game.batch.begin();
@@ -127,6 +127,8 @@ public class GameScreen implements Screen {
         cam.viewportWidth = width;
         cam.viewportHeight = height;
         cam.update();
+        game.batch.setProjectionMatrix(cam.combined);
+        game.shapeDrawer.update();
     }
 
     @Override
@@ -171,11 +173,7 @@ public class GameScreen implements Screen {
     private void drawGestures() {
         if (0 < currentResolution) {
 
-//            long current = System.currentTimeMillis();
-//            long initialDeltaTime = current - initialTime;
             float cycleValue = time % 1f;
-            //float prevOmega = 0;
-            //float prevOmegaAvg = 0;
 
             //draw each gesture
             for (int gestureIdx = 0; gestureIdx < gestureCount; gestureIdx++) {
@@ -186,14 +184,12 @@ public class GameScreen implements Screen {
                 for (int z = 0; z < GESTURE_DIMENSIONS; z++) {
                     v0[z] = renderBuffer[z][startIndex];
                 }
-                v0[xIdx] = Math.round(v0[xIdx] * width);
-                v0[yIdx] = Math.round(v0[yIdx] * height);
+                v0[xIdx] *= width;
+                v0[yIdx] *= height;
 
                 float deltaTime = time - v0[timeIdx];
-                float rad = MathUtils.PI2 * (deltaTime % 1f);
-                setRainbowColor(rad);
+                setRainbowColor(MathUtils.PI2 * (deltaTime % 1f));
                 c0.set(r, g, b, a);
-                game.shapeDrawer.setColor(c0);
 
                 //draw each line segment
                 for (int i = startIndex; i < endIndex; i++) {
@@ -204,47 +200,44 @@ public class GameScreen implements Screen {
                             v1[z] += cycleValue * (renderBuffer[z][i + 1] - renderBuffer[z][i]);
                         }
                     }
-                    v1[xIdx] = Math.round(v1[xIdx] * width);
-                    v1[yIdx] = Math.round(v1[yIdx] * height);
+                    v1[xIdx] *= width;
+                    v1[yIdx] *= height;
 
                     //cycle color based on touch time
                     deltaTime = time - v1[timeIdx];
-                    rad = MathUtils.PI2 * (deltaTime % 1f);
-                    setRainbowColor(rad);
+                    setRainbowColor(MathUtils.PI2 * (deltaTime % 1f));
                     c1.set(r, g, b, a);
 
                     //use relative pressure and time since touch to calculate width
                     float pressure = maxPressure == minPressure ? 1 : (v1[pressureIdx] - minPressure) / (maxPressure - minPressure);
                     float strokeWidth = maxStrokeWidth * pressure * (-1 / (deltaTime + 1) + 1);
 
-                    if (v0[xIdx] != v1[xIdx] || v0[yIdx] != v1[yIdx]) {
-                        //float omega = MathUtils.atan2(v1[yIdx] - v0[yIdx], v1[xIdx] - v0[xIdx]);
-                        game.shapeDrawer.filledCircle(
-                            v0[xIdx], v0[yIdx],
-                            strokeWidth / 2
-                        );
-
+                    game.shapeDrawer.sector(
+                        v0[xIdx], v0[yIdx],
+                        strokeWidth / 2,
+                        0, MathUtils.PI2,
+                        c0, c0
+                    );
+                    if (2 < Math.abs(v0[xIdx] - v1[xIdx]) || 2 < Math.abs(v0[yIdx] - v1[yIdx])) {
                         game.shapeDrawer.line(
                             v0[xIdx], v0[yIdx],
                             v1[xIdx], v1[yIdx],
-                            strokeWidth
+                            strokeWidth,
+                            c0, c1
                         );
 
-                        // ToDo: draw pie slice to split the difference on the connection angle
-
-
-                        //copy v1 into v0
-                        System.arraycopy(v1, 0, v0, 0, GESTURE_DIMENSIONS);
-                        c0.set(c1);
-                        game.shapeDrawer.setColor(c0);
                     }
                     if (i == endIndex - 1) {
-                        game.shapeDrawer.filledCircle(
+                        game.shapeDrawer.sector(
                             v1[xIdx], v1[yIdx],
-                            strokeWidth / 2
+                            strokeWidth / 2,
+                            0, MathUtils.PI2,
+                            c1, c1
                         );
                     }
-                    //prevOmega = omega;
+                    //copy v1 into v0
+                    System.arraycopy(v1, 0, v0, 0, GESTURE_DIMENSIONS);
+                    c0.set(c1);
                 }
             }
         }
@@ -333,11 +326,12 @@ public class GameScreen implements Screen {
             int targetResolution = targetEndIdx - targetStartIdx;
             int a = inputStartIdx;
             int b = a + 1;
+
+            float totalTime = renderBuffer[timeIdx][inputEndIdx - 1] - renderBuffer[timeIdx][inputStartIdx];
             for (int j = 0; j < targetResolution; j++) {
                 //target time based on equidistant points in time
-                float timeTarget = renderBuffer[timeIdx][inputStartIdx] + j
-                    * (renderBuffer[timeIdx][inputEndIdx - 1] - renderBuffer[timeIdx][inputStartIdx])
-                    / (targetResolution - 1);
+                float timeTarget = renderBuffer[timeIdx][inputStartIdx]
+                    + (j * totalTime) / (targetResolution - 1);
 
                 //find points a & b that straddle target time
                 int b0 = b;
